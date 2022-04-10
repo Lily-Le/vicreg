@@ -23,7 +23,7 @@ import augmentations as aug
 from distributed import init_distributed_mode
 
 import resnet
-
+from DatasetUnsupervisedMV import DatasetUnsupervisedMultiview, get_dataset
 
 def get_arguments():
     parser = argparse.ArgumentParser(description="Pretrain a resnet model with VICReg", add_help=False)
@@ -82,7 +82,7 @@ def main(args):
     init_distributed_mode(args)
     print(args)
     gpu = torch.device(args.device)
-
+    args.rank=0 #mine
     if args.rank == 0:
         args.exp_dir.mkdir(parents=True, exist_ok=True)
         stats_file = open(args.exp_dir / "stats.txt", "a", buffering=1)
@@ -91,7 +91,8 @@ def main(args):
 
     transforms = aug.TrainTransform()
 
-    dataset = datasets.ImageFolder(args.data_dir / "train", transforms)
+    # dataset = datasets.ImageFolder(args.data_dir / "train", transforms)
+    dataset = get_dataset(args.batch_size)
     sampler = torch.utils.data.distributed.DistributedSampler(dataset, shuffle=True)
     assert args.batch_size % args.world_size == 0
     per_device_batch_size = args.batch_size // args.world_size
@@ -99,8 +100,9 @@ def main(args):
         dataset,
         batch_size=per_device_batch_size,
         num_workers=args.num_workers,
-        pin_memory=True,
-        sampler=sampler,
+        # pin_memory=True,
+        # sampler=sampler,
+        shuffle = True,
     )
 
     model = VICReg(args).cuda(gpu)
